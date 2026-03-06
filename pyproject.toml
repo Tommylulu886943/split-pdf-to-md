@@ -1,5 +1,5 @@
 [project]
-name = "ai-split-pdf-to-md"
+name = "split-pdf-to-md"
 version = "0.1.0"
 description = "Split large PDFs via natural language descriptions and convert to LLM-optimized Markdown"
 requires-python = ">=3.10"

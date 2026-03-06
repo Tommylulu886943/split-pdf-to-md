@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""AI Split PDF to MD - CLI entry point and pipeline orchestration."""
+"""Split PDF to MD - CLI entry point and pipeline orchestration."""
 from __future__ import annotations
 
 import os

@@ -1,4 +1,4 @@
-# AI Split PDF to MD - Configuration Example
+# Split PDF to MD - Configuration Example
 #
 # Place this file as config.yaml in the project root.
 # CLI arguments take precedence over these values.

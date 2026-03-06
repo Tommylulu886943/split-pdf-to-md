@@ -1,4 +1,4 @@
-# AI Split PDF to MD
+# Split PDF to MD
 
 Split large PDFs via natural language descriptions and convert to LLM-optimized Markdown.
 

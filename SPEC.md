@@ -1,4 +1,4 @@
-# AI Split PDF to MD - Software Development Specification
+# Split PDF to MD - Software Development Specification
 
 ## 1. Project Overview
 

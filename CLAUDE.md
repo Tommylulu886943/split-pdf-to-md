@@ -1,4 +1,4 @@
-# AI Split PDF to MD
+# Split PDF to MD
 
 ## Project Overview
 
