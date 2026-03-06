@@ -1,0 +1,24 @@
+services:
+  # Lite version: pymupdf4llm only (~250MB image)
+  pdf-processor-lite:
+    build:
+      context: .
+      target: lite
+    volumes:
+      - ./input:/app/input
+      - ./output:/app/output
+    environment:
+      - ANTHROPIC_API_KEY=${ANTHROPIC_API_KEY}
+    profiles: ["lite"]
+
+  # Full version: marker-pdf + pymupdf4llm (~2.5GB image)
+  pdf-processor:
+    build:
+      context: .
+      target: full
+    volumes:
+      - ./input:/app/input
+      - ./output:/app/output
+    environment:
+      - ANTHROPIC_API_KEY=${ANTHROPIC_API_KEY}
+    profiles: ["full"]

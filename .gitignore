@@ -1,0 +1,28 @@
+__pycache__/
+*.pyc
+.pytest_cache/
+.ruff_cache/
+*.egg-info/
+
+# Personal data - no PDFs or converted results
+*.pdf
+*.md
+output/
+input/
+results/
+fortios_ranges.json
+
+# Keep project docs and skill
+!README.md
+!CLAUDE.md
+!SPEC.md
+!PHASE*.md
+!skills/*.md
+
+# Environment
+.env
+.venv/
+
+# IDE
+.vscode/
+.idea/

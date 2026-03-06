@@ -1,0 +1,7 @@
+pypdf>=4.0
+anthropic>=0.40
+pyyaml>=6.0
+tqdm>=4.60
+pymupdf4llm>=0.0.10
+pymupdf>=1.24
+marker-pdf>=1.0
