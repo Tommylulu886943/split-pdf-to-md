@@ -10,7 +10,7 @@ RUN apt-get update && apt-get install -y --no-install-recommends \
     && rm -rf /var/lib/apt/lists/*
 
 WORKDIR /app
-COPY pyproject.toml requirements.txt ./
+COPY pyproject.toml ./
 
 ##############################################
 # Stage: lite - pymupdf4llm only (~250MB)

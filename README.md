@@ -20,11 +20,11 @@ Split large PDFs via natural language descriptions and convert to LLM-optimized 
 ### Install
 
 ```bash
-# Core + lightweight converter
-pip install pypdf anthropic pyyaml tqdm pymupdf4llm pymupdf
+# Lite (recommended)
+pip install -r requirements-lite.txt
 
-# Optional: high-quality converter (requires torch)
-pip install marker-pdf
+# Full (includes marker-pdf, requires torch ~2GB)
+pip install -r requirements-full.txt
 ```
 
 ### Run
