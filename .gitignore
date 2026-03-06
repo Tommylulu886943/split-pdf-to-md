@@ -15,8 +15,6 @@ fortios_ranges.json
 # Keep project docs and skill
 !README.md
 !CLAUDE.md
-!SPEC.md
-!PHASE*.md
 !skills/*.md
 
 # Environment
