@@ -68,7 +68,7 @@ def load_config(argv: list[str] | None = None) -> AppConfig:
 
     if args.model:
         config.model = args.model
-    if args.toc_pages:
+    if args.toc_pages is not None:
         config.toc_scan_pages = args.toc_pages
 
     return config

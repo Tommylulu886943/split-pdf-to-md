@@ -90,8 +90,18 @@ class PDFConverter:
             basename = os.path.splitext(os.path.basename(pdf_path))[0]
             md_path = os.path.join(output_dir, f"{basename}.md")
 
-            result = self.convert(pdf_path, md_path)
-            results.append(result)
+            try:
+                result = self.convert(pdf_path, md_path)
+                results.append(result)
+            except Exception as e:
+                logger.error(f"Failed to convert {os.path.basename(pdf_path)}: {e}")
+                results.append(ConvertResult(
+                    md_path=md_path,
+                    page_count=0,
+                    size_bytes=0,
+                    converter_used="error",
+                    warnings=[f"Conversion failed: {e}"],
+                ))
 
             if on_progress:
                 on_progress(i, len(pdf_files), os.path.basename(md_path))
@@ -120,6 +130,10 @@ class PDFConverter:
         except ImportError:
             logger.info("marker-pdf not available, falling back to pymupdf4llm")
             warnings.append("marker-pdf not installed, used pymupdf4llm fallback")
+            return self._convert_pymupdf4llm(pdf_path, warnings)
+        except Exception as e:
+            logger.warning(f"marker-pdf failed ({e}), falling back to pymupdf4llm")
+            warnings.append(f"marker-pdf error: {e}, used pymupdf4llm fallback")
             return self._convert_pymupdf4llm(pdf_path, warnings)
 
     def _convert_marker(

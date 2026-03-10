@@ -33,7 +33,7 @@ class PageRange:
 def extract_ranges(
     pdf_path: str,
     natural_desc: str,
-    api_key: str,
+    api_key: str = "",
     model: str = "claude-sonnet-4-20250514",
     max_tokens: int = 2000,
     toc_scan_pages: int = 30,
@@ -55,8 +55,8 @@ def extract_ranges(
         logger.info(f"Fast path: parsed {len(ranges)} ranges from description")
         return ranges
 
-    # LLM path
-    if not api_key:
+    # LLM path — SDK reads ANTHROPIC_API_KEY from env automatically
+    if not api_key and not os.environ.get("ANTHROPIC_API_KEY"):
         raise ValueError(
             "ANTHROPIC_API_KEY is required for semantic descriptions. "
             "Set it via environment variable or use explicit page ranges like '1-100, 101-200'."
@@ -137,10 +137,12 @@ JSON array where each element has:
 - start_page < end_page
 - Ranges must not overlap"""
 
-    client = anthropic.Anthropic(api_key=api_key)
+    # Let SDK read ANTHROPIC_API_KEY from env; only pass explicitly if provided
+    client = anthropic.Anthropic() if not api_key else anthropic.Anthropic(api_key=api_key)
     response = client.messages.create(
         model=model,
         max_tokens=max_tokens,
+        timeout=120.0,
         system=system_prompt,
         messages=[{"role": "user", "content": user_prompt}],
     )
@@ -215,8 +217,8 @@ def _validate_ranges(ranges: list[PageRange], total_pages: int) -> list[PageRang
                 f"Invalid range '{r.name}': start({r.start_page}) >= end({r.end_page})"
             )
         # Sanitize name
-        r.name = re.sub(r'[<>:"/\\|?*\x00-\x1f]', "", r.name)
-        r.name = re.sub(r"\s+", "_", r.name.strip()) or f"part_{len(validated) + 1}"
+        from .utils import sanitize_filename
+        r.name = sanitize_filename(r.name) or f"part_{len(validated) + 1}"
         validated.append(r)
 
     # Check overlaps
@@ -244,4 +246,20 @@ def load_ranges(path: str) -> list[PageRange]:
     """Load ranges from JSON file."""
     with open(path, "r", encoding="utf-8") as f:
         data = json.load(f)
-    return [PageRange(**item) for item in data]
+    if not isinstance(data, list):
+        raise ValueError(f"Expected JSON array in {path}, got {type(data).__name__}")
+    required_keys = {"name", "start_page", "end_page"}
+    ranges = []
+    for i, item in enumerate(data):
+        if not isinstance(item, dict):
+            raise ValueError(f"Item {i} in {path} is not an object")
+        missing = required_keys - item.keys()
+        if missing:
+            raise ValueError(f"Item {i} in {path} missing keys: {missing}")
+        ranges.append(PageRange(
+            name=item["name"],
+            start_page=item["start_page"],
+            end_page=item["end_page"],
+            reason=item.get("reason", ""),
+        ))
+    return ranges

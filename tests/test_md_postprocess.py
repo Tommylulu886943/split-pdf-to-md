@@ -11,11 +11,18 @@ from src.md_postprocess import (
 
 
 class TestRemovePageNumbers:
-    def test_standalone_number(self):
-        text = "Some text\n42\nMore text"
+    def test_standalone_number_near_separator(self):
+        """Bare numbers only removed near page separators (---)."""
+        text = "Some text\n---\n42\nMore text"
         result = _remove_page_numbers(text)
         assert "42" not in result
         assert "Some text" in result
+
+    def test_standalone_number_not_near_separator(self):
+        """Bare numbers preserved when not near page separators."""
+        text = "Some text\n42\nMore text"
+        result = _remove_page_numbers(text)
+        assert "42" in result
 
     def test_dash_format(self):
         text = "Content\n- 15 -\nMore"

@@ -81,33 +81,66 @@ def _remove_repeated_headers_footers(content: str) -> str:
     if not remove_lines:
         return content
 
-    # Remove matched lines
-    result_lines = []
-    for line in content.splitlines():
-        if line.strip() not in remove_lines:
-            result_lines.append(line)
+    # Remove matched lines only at segment boundaries (first/last 2 lines of each segment)
+    rebuilt_segments = []
+    for seg in segments:
+        lines = seg.splitlines()
+        cleaned = []
+        for j, line in enumerate(lines):
+            stripped = line.strip()
+            if not stripped:
+                cleaned.append(line)
+                continue
+            # Count non-empty lines from start and end
+            non_empty_before = sum(1 for l in lines[:j] if l.strip())
+            non_empty_after = sum(1 for l in lines[j+1:] if l.strip())
+            at_boundary = non_empty_before < 2 or non_empty_after < 2
+            if at_boundary and stripped in remove_lines:
+                continue
+            cleaned.append(line)
+        rebuilt_segments.append("\n".join(cleaned))
 
-    return "\n".join(result_lines)
+    return "\n---\n".join(rebuilt_segments)
 
 
 def _remove_page_numbers(content: str) -> str:
-    """Remove standalone page number lines."""
-    # Patterns: "- 42 -", "Page 42", "42", "-- 42 --", "p. 42"
-    page_num_pattern = re.compile(
+    """Remove standalone page number lines near page boundaries."""
+    # Patterns: "- 42 -", "Page 42", "-- 42 --", "p. 42"
+    # Note: bare numbers (\d+) only removed near page separators to avoid
+    # deleting legitimate numeric content in tables/lists.
+    decorated_pattern = re.compile(
         r"^[\s]*(?:"
         r"-{1,3}\s*\d+\s*-{1,3}"       # - 42 - or -- 42 --
         r"|[Pp](?:age|\.)\s*\d+"         # Page 42 or p. 42
-        r"|\d{1,5}"                       # standalone number
         r")[\s]*$"
     )
+    bare_number_pattern = re.compile(r"^[\s]*\d{1,5}[\s]*$")
 
     lines = content.splitlines()
     result = []
-    for line in lines:
+    for i, line in enumerate(lines):
         stripped = line.strip()
-        # Only remove if the line is JUST a page number (short line)
-        if stripped and len(stripped) <= 12 and page_num_pattern.match(stripped):
+        if not stripped or len(stripped) > 12:
+            result.append(line)
             continue
+
+        # Decorated page numbers (- 42 -, Page 42) — always remove
+        if decorated_pattern.match(stripped):
+            continue
+
+        # Bare numbers — only remove if adjacent to a page separator (---)
+        if bare_number_pattern.match(stripped):
+            near_separator = False
+            for offset in range(1, 4):
+                if i - offset >= 0 and re.match(r"^-{3,}$", lines[i - offset].strip()):
+                    near_separator = True
+                    break
+                if i + offset < len(lines) and re.match(r"^-{3,}$", lines[i + offset].strip()):
+                    near_separator = True
+                    break
+            if near_separator:
+                continue
+
         result.append(line)
 
     return "\n".join(result)
@@ -163,11 +196,26 @@ def _should_join(prev: str, curr: str) -> bool:
     if prev_stripped[-1] in sentence_enders:
         return False
 
-    # curr must start with lowercase or continuation char
+    # curr must start with lowercase, continuation char, or CJK character
     if curr_stripped[0].islower() or curr_stripped[0] in "([\"'":
         return True
 
+    # CJK continuation: prev ends with CJK and curr starts with CJK
+    if _is_cjk(prev_stripped[-1]) and _is_cjk(curr_stripped[0]):
+        return True
+
     return False
+
+
+def _is_cjk(char: str) -> bool:
+    """Check if a character is CJK (Chinese/Japanese/Korean)."""
+    cp = ord(char)
+    return (
+        0x4E00 <= cp <= 0x9FFF        # CJK Unified Ideographs
+        or 0x3400 <= cp <= 0x4DBF     # CJK Extension A
+        or 0xF900 <= cp <= 0xFAFF     # CJK Compatibility Ideographs
+        or 0x3000 <= cp <= 0x303F     # CJK Symbols and Punctuation
+    )
 
 
 def _normalize_whitespace(content: str) -> str:

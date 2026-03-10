@@ -2,9 +2,12 @@
 """Split PDF to MD - CLI entry point and pipeline orchestration."""
 from __future__ import annotations
 
+import logging
 import os
 import sys
 import time
+
+logger = logging.getLogger("split-pdf")
 
 from .config import AppConfig, load_config, validate_config
 from .range_extractor import extract_ranges, save_ranges, load_ranges, PageRange
@@ -146,6 +149,8 @@ def _print_summary(
         print(f"  Token est:    ~{token_est:,}")
     print(f"  Time:         {elapsed:.1f}s")
     print()
+    if len(ranges) != len(output_files):
+        logger.warning(f"Range count ({len(ranges)}) != output file count ({len(output_files)})")
     for i, (rg, path) in enumerate(zip(ranges, output_files), 1):
         pdf_s = os.path.getsize(path) / (1024 * 1024)
         line = f"  {i:2d}. {rg.name} (p.{rg.start_page}-{rg.end_page}, {rg.page_count()} pages, {pdf_s:.1f} MB PDF"

@@ -5,7 +5,7 @@ description = "Split large PDFs via natural language descriptions and convert to
 requires-python = ">=3.10"
 dependencies = [
     "pypdf>=4.0",
-    "anthropic>=0.40",
+    "anthropic>=0.40,<1.0",
 ]
 
 [project.optional-dependencies]
