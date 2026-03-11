@@ -12,6 +12,7 @@ Split large PDFs via natural language descriptions and convert to LLM-optimized 
 - **Smart fast path** - Explicit page ranges are parsed instantly via regex (no API call needed)
 - **LLM parsing** - Semantic descriptions analyzed by Claude with PDF structure context (bookmarks, TOC, page sampling)
 - **Dual MD engine** - `marker-pdf` (high-quality tables/formulas) or `pymupdf4llm` (lightweight/fast), auto-fallback
+- **Content-aware conversion** - `--content-aware` classifies pages by type (prose/table/image) and uses specialized extraction per type
 - **Token optimization** - Post-processing removes headers/footers, page numbers, fixes broken lines, normalizes whitespace
 - **Reusable ranges** - Parsed ranges saved as `ranges.json` for re-runs without API calls
 
@@ -46,6 +47,9 @@ python -m src.main --pdf book.pdf --ranges output/ranges.json
 
 # Convert existing PDFs
 python -m src.main --convert-dir ./pdf_chunks/ --converter pymupdf4llm
+
+# Content-aware mode (better for PDFs with dense tables)
+python -m src.main --pdf book.pdf --desc "1-500, 501-1000" --content-aware
 ```
 
 ### Output
@@ -76,6 +80,7 @@ output/
 | `--model` | `-m` | `claude-sonnet-4-20250514` | Claude model ID |
 | `--toc-pages` | | `30` | Pages to scan for TOC |
 | `--no-postprocess` | | | Skip MD token optimization |
+| `--content-aware` | | | Page-type-aware conversion (table pages get specialized extraction) |
 | `--split-only` | | | Only split PDF, skip conversion |
 | `--verbose` | `-v` | | Verbose logging |
 
@@ -121,8 +126,11 @@ ANTHROPIC_API_KEY=sk-ant-...
 |--------|------|-------|----------------|----------|
 | `pymupdf4llm` | ~50MB | Fast | Basic | Text-heavy PDFs |
 | `marker-pdf` | ~2GB | Slower | High quality | Complex layouts, scanned docs |
+| `--content-aware` | +0 | Slight overhead | Structured tables | PDFs with dense matrix/feature tables |
 
 `auto` mode tries marker first, falls back to pymupdf4llm if not installed.
+
+`--content-aware` classifies each page as prose, table-dense, table-mixed, or image-heavy, then applies the best extraction strategy per group. Table pages use pymupdf's built-in table finder (with pdfplumber fallback if installed) to produce proper Markdown tables instead of scattered text.
 
 ## Token Optimization
 
@@ -158,7 +166,9 @@ src/
 ├── toc_scanner.py       # PDF structure scanning (3-layer)
 ├── range_extractor.py   # Page range parsing (regex + LLM)
 ├── pdf_splitter.py      # PDF splitting (pypdf)
-├── pdf_to_md.py         # Dual-engine MD converter
+├── pdf_to_md.py         # Dual-engine MD converter + content-aware routing
+├── page_classifier.py   # Page content type classifier (prose/table/image)
+├── table_extractor.py   # Multi-layer table extraction (pymupdf + pdfplumber)
 ├── md_postprocess.py    # Token optimization post-processor
 └── utils.py             # Shared utilities
 ```

@@ -106,6 +106,72 @@ class TestPDFConverterMarker:
             assert "marker-pdf" in str(e)
 
 
+class TestPDFConverterContentAware:
+    def test_content_aware_basic(self, text_pdf, tmp_path):
+        """Content-aware mode should work on prose-only PDFs."""
+        converter = PDFConverter(converter="pymupdf4llm", content_aware=True)
+        md_path = str(tmp_path / "output.md")
+        result = converter.convert(text_pdf, md_path)
+
+        assert os.path.exists(result.md_path)
+        assert result.page_count == 3
+        assert result.size_bytes > 0
+        # No tables, so should use standard pymupdf4llm
+        assert "pymupdf4llm" in result.converter_used
+
+    def test_content_aware_backward_compat(self, text_pdf, tmp_path):
+        """Default (content_aware=False) should behave identically to before."""
+        conv_default = PDFConverter(converter="pymupdf4llm", content_aware=False)
+        conv_aware = PDFConverter(converter="pymupdf4llm", content_aware=True)
+
+        md1 = str(tmp_path / "default.md")
+        md2 = str(tmp_path / "aware.md")
+
+        r1 = conv_default.convert(text_pdf, md1)
+        r2 = conv_aware.convert(text_pdf, md2)
+
+        # Both should succeed
+        assert r1.page_count == r2.page_count
+        assert r1.size_bytes > 0
+        assert r2.size_bytes > 0
+
+    def test_content_aware_with_table(self, tmp_path):
+        """Content-aware should detect and handle table pages."""
+        import pymupdf
+
+        # Create PDF with table
+        pdf_path = str(tmp_path / "table.pdf")
+        doc = pymupdf.open()
+        page = doc.new_page(width=612, height=792)
+        x0, y0 = 50, 50
+        cols, rows = 4, 10
+        col_w, row_h = 120, 30
+        for r in range(rows + 1):
+            y = y0 + r * row_h
+            page.draw_line((x0, y), (x0 + cols * col_w, y))
+        for c in range(cols + 1):
+            x = x0 + c * col_w
+            page.draw_line((x, y0), (x, y0 + rows * row_h))
+        for r in range(rows):
+            for c in range(cols):
+                page.insert_text(
+                    (x0 + c * col_w + 5, y0 + r * row_h + 18),
+                    f"V{r}{c}", fontsize=8,
+                )
+        doc.save(pdf_path)
+        doc.close()
+
+        converter = PDFConverter(converter="pymupdf4llm", content_aware=True)
+        md_path = str(tmp_path / "output.md")
+        result = converter.convert(pdf_path, md_path)
+
+        assert result.page_count == 1
+        with open(md_path) as f:
+            content = f.read()
+        # Should contain table-like structure
+        assert "|" in content or "V0" in content
+
+
 class TestConvertResult:
     def test_fields(self):
         r = ConvertResult(

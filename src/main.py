@@ -103,6 +103,7 @@ def _convert_to_md(
         converter=config.converter,
         postprocess=not config.no_postprocess,
         postprocess_config=pp_config,
+        content_aware=config.content_aware,
     )
 
     md_dir = os.path.join(config.output_dir, "markdown")

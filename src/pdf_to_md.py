@@ -7,6 +7,12 @@ from dataclasses import dataclass, field
 from typing import Callable
 
 from .md_postprocess import postprocess_md, PostprocessConfig
+from .page_classifier import (
+    PageContentType,
+    classify_pages,
+    group_consecutive_pages,
+)
+from .table_extractor import extract_tables_from_pages
 
 logger = logging.getLogger("split-pdf")
 
@@ -28,16 +34,19 @@ class PDFConverter:
         converter: str = "auto",
         postprocess: bool = True,
         postprocess_config: PostprocessConfig | None = None,
+        content_aware: bool = False,
     ):
         """
         Args:
             converter: "marker", "pymupdf4llm", or "auto" (try marker then fallback).
             postprocess: Whether to run MD post-processing.
             postprocess_config: Post-processing options.
+            content_aware: Enable page-type-aware conversion (tables get special handling).
         """
         self.converter = converter
         self.postprocess = postprocess
         self.postprocess_config = postprocess_config or PostprocessConfig()
+        self.content_aware = content_aware
         self._resolved_converter: str | None = None
 
     def convert(self, pdf_path: str, output_md: str) -> ConvertResult:
@@ -114,12 +123,70 @@ class PDFConverter:
         """
         Execute conversion. Returns (markdown_text, converter_name, page_count).
         """
+        if self.content_aware:
+            return self._convert_content_aware(pdf_path, warnings)
         if self.converter == "marker":
             return self._convert_marker(pdf_path, warnings)
         elif self.converter == "pymupdf4llm":
             return self._convert_pymupdf4llm(pdf_path, warnings)
         else:  # auto
             return self._convert_auto(pdf_path, warnings)
+
+    def _convert_content_aware(
+        self, pdf_path: str, warnings: list[str]
+    ) -> tuple[str, str, int]:
+        """Content-aware conversion: classify pages, then use per-type strategies."""
+        import pymupdf
+
+        doc = pymupdf.open(pdf_path)
+        page_count = len(doc)
+        doc.close()
+
+        # Step 1: Classify all pages
+        classifications = classify_pages(pdf_path)
+        groups = group_consecutive_pages(classifications)
+
+        # Step 2: Convert each group with appropriate strategy
+        parts = []
+        table_page_count = 0
+
+        for content_type, page_indices in groups:
+            if content_type in (PageContentType.TABLE_DENSE, PageContentType.TABLE_MIXED):
+                # Use table extractor for table-heavy pages
+                md = extract_tables_from_pages(pdf_path, page_indices)
+                table_page_count += len(page_indices)
+                parts.append(md)
+            else:
+                # Use standard pymupdf4llm for prose/image pages
+                md = self._convert_page_range_pymupdf4llm(pdf_path, page_indices)
+                parts.append(md)
+
+        if table_page_count > 0:
+            warnings.append(
+                f"Content-aware: {table_page_count}/{page_count} pages "
+                f"used table extraction"
+            )
+            logger.info(
+                f"Content-aware conversion: {table_page_count} table pages, "
+                f"{page_count - table_page_count} prose pages"
+            )
+
+        converter_name = "pymupdf4llm+tables" if table_page_count > 0 else "pymupdf4llm"
+        return "\n\n".join(parts), converter_name, page_count
+
+    def _convert_page_range_pymupdf4llm(
+        self, pdf_path: str, page_indices: list[int]
+    ) -> str:
+        """Convert specific pages using pymupdf4llm."""
+        import pymupdf4llm
+
+        md_text = pymupdf4llm.to_markdown(
+            pdf_path,
+            pages=page_indices,
+            show_progress=False,
+            force_text=True,
+        )
+        return md_text
 
     def _convert_auto(
         self, pdf_path: str, warnings: list[str]

@@ -25,6 +25,7 @@ class AppConfig:
     # Conversion
     converter: str = "auto"  # "marker" | "pymupdf4llm" | "auto"
     no_postprocess: bool = False
+    content_aware: bool = False  # page-type-aware conversion
 
     # Modes
     split_only: bool = False
@@ -48,6 +49,8 @@ def load_config(argv: list[str] | None = None) -> AppConfig:
     parser.add_argument("--converter", "-c", choices=["marker", "pymupdf4llm", "auto"],
                         default="auto", help="Conversion engine (default: auto)")
     parser.add_argument("--no-postprocess", action="store_true", help="Skip MD post-processing")
+    parser.add_argument("--content-aware", action="store_true",
+                        help="Enable content-aware conversion (table pages get special handling)")
     parser.add_argument("--split-only", action="store_true", help="Only split, skip MD conversion")
     parser.add_argument("--verbose", "-v", action="store_true", help="Verbose logging")
 
@@ -61,6 +64,7 @@ def load_config(argv: list[str] | None = None) -> AppConfig:
         convert_dir=args.convert_dir,
         converter=args.converter,
         no_postprocess=args.no_postprocess,
+        content_aware=args.content_aware,
         split_only=args.split_only,
         verbose=args.verbose,
         anthropic_api_key=os.environ.get("ANTHROPIC_API_KEY", ""),
